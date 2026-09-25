@@ -15,6 +15,7 @@
  * conflicts — and the disagreements would only show up in production.
  */
 import {
+  AUTOMATIONS_DOCS_URL,
   declaredAutomationId,
   toTriggerSource,
   VendoError,
@@ -29,6 +30,22 @@ import type { EngineBase } from "./engine-context.js";
 import { id } from "./rows.js";
 import { SCHEDULE } from "./types.js";
 import { base64url } from "./webhook-signature.js";
+
+/** A timezone the tick can compute a run in, or a `validation` throw. croner
+ *  takes any string at construction and throws only when it computes a run, so
+ *  an unresolvable name would otherwise be stored, armed, and then throw inside
+ *  the shared tick — stopping every other schedule with it. */
+const validateTimezone = (timezone: string): string => {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+  } catch {
+    throw new VendoError(
+      "validation",
+      `"${timezone}" is not a timezone — use an IANA name such as "America/New_York". See ${AUTOMATIONS_DOCS_URL}`,
+    );
+  }
+  return timezone;
+};
 
 export type CreateSurfaceDeps = { base: EngineBase; automations: AutomationRowsAccess };
 
@@ -56,6 +73,7 @@ export const createCreateSurface = (
       throw new VendoError("forbidden", `cannot create an automation owned by ${input.owner.subject}`);
     }
     const when = toTriggerSource(input.when);
+    if (input.timezone !== undefined) validateTimezone(input.timezone);
     // A declared id REPLACES: a redeploy re-running create with a stored id is
     // the normal case, not a conflict. Absent, the id is minted — a chat-authored
     // record has no stable identity to reconcile against and does not want one.
