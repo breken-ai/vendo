@@ -89,11 +89,18 @@ export const createCreateSurface = (
     // that already passed. `insertIfAbsent`, so a replace leaves an existing
     // cursor — and its firing history — exactly where it was.
     if (when.kind === "schedule") {
-      await engine.insertIfAbsent(SCHEDULE, {
+      const cursor = {
         id: automationId,
         data: { lastFiredAt: now },
         refs: { automation_id: automationId },
-      });
+      };
+      // Except a MOVED one-shot: the kept cursor's `firedAt` belongs to the
+      // instant it already fired at, and the tick never fires an `at` whose
+      // cursor has one — so the new instant would never run.
+      const previous = existing?.row.when;
+      const movedAt = when.at !== undefined && previous?.kind === "schedule" && previous.at !== when.at;
+      if (movedAt) await engine.put(SCHEDULE, cursor);
+      else await engine.insertIfAbsent(SCHEDULE, cursor);
     }
     return record;
   };
