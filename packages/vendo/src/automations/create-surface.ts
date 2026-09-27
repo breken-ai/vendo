@@ -137,6 +137,12 @@ export const createCreateSurface = (
    * that a person may have raced.
    */
   const reconcile: ReconcileAutomations = async (plan, ctx) => {
+    // Every timezone is checked before the first write, the way the pure diff
+    // already refuses a bad cron: one bad declaration refuses the whole plan
+    // instead of leaving it half applied.
+    for (const input of plan.create) {
+      if (input.timezone !== undefined) validateTimezone(input.timezone);
+    }
     const created: AutomationRecord[] = [];
     for (const input of plan.create) {
       const existing = input.id === undefined ? null : await automations.automationRecord(input.id);

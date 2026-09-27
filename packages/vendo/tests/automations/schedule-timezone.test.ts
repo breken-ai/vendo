@@ -81,6 +81,20 @@ describe("automation timezone", () => {
     expect(fired).toHaveLength(1);
   });
 
+  it("refuses a whole reconcile plan with a bad timezone before writing any of it", async () => {
+    const engine = engineAt();
+    const plan = {
+      create: [
+        { id: "atm_first", owner: ctx.principal, authoredBy: "code" as const, when: "0 9 * * *", task: { kind: "steps" as const, steps: [] } },
+        { id: "atm_second", owner: ctx.principal, authoredBy: "code" as const, when: "0 9 * * *", timezone: "Pacific Time", task: { kind: "steps" as const, steps: [] } },
+      ],
+      disarm: [],
+    };
+
+    await expect(automationsInternals(engine).reconcile(plan, ctx)).rejects.toMatchObject({ code: "validation" });
+    expect(await engine.list({}, ctx)).toEqual([]);
+  });
+
   it("still accepts IANA names and the aliases croner resolves", async () => {
     const internals = automationsInternals(engineAt());
     for (const timezone of ["America/New_York", "Europe/London", "UTC", "EST"]) {
