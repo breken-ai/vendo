@@ -97,4 +97,30 @@ describe("a moved one-shot schedule", () => {
     clock = new Date("2026-09-01T09:02:00.000Z");
     expect(await engine.tick(clock)).toHaveLength(0);
   });
+
+  it("does not re-fire a one-shot redeclared with the same instant in other ISO text", async () => {
+    let clock = new Date("2026-08-01T00:00:00.000Z");
+    const engine = createAutomations({
+      tools: registry(),
+      guard: new GuardDouble(),
+      store: memoryStoreAdapter(),
+      now: () => clock,
+    });
+    const internals = automationsInternals(engine);
+    const declare = (at: string) => internals.create({
+      id: "atm_launch",
+      owner: ctx.principal,
+      authoredBy: "code",
+      when: { at },
+      task: { kind: "steps", steps: [] },
+    }, ctx);
+
+    await declare(FIRST);
+    clock = new Date("2026-09-01T09:01:00.000Z");
+    expect(await engine.tick(clock)).toHaveLength(1);
+
+    await declare("2026-09-01T09:00:00Z");
+    clock = new Date("2026-09-01T09:02:00.000Z");
+    expect(await engine.tick(clock)).toHaveLength(0);
+  });
 });
